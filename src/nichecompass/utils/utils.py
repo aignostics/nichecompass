@@ -8,7 +8,9 @@ from typing import Optional
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import pyreadr
+import urllib.request
+
+import rdata
 import seaborn as sns
 from anndata import AnnData
 
@@ -40,12 +42,17 @@ def load_R_file_as_df(R_file_path: str,
     if url is None:
         if not os.path.exists(R_file_path):
             raise ValueError("Please specify a valid ´R_file_path´ or ´url´.")
-        result_odict = pyreadr.read_r(R_file_path)
     else:
-        result_odict = pyreadr.read_r(pyreadr.download_file(url, R_file_path))
-        os.remove(R_file_path)
+        urllib.request.urlretrieve(url, R_file_path)
 
-    df = result_odict[None]
+    if R_file_path.endswith(".rds"):
+        df = rdata.read_rds(R_file_path)
+    else:
+        result_dict = rdata.read_rda(R_file_path)
+        df = next(iter(result_dict.values()))
+
+    if url is not None:
+        os.remove(R_file_path)
 
     if save_df_to_disk:
         if df_save_path == None:
