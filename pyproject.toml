@@ -28,7 +28,7 @@ classifiers = [
 ]
 dependencies = [
     "mlflow",
-    "pyreadr",
+    "rdata",
     "scanpy",
     "torch-geometric",
     "omnipath",
