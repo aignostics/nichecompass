@@ -10,13 +10,13 @@ import time
 from typing import Optional, Union
 import gc
 
-import mlflow
 import numpy as np
 import scanpy as sc
 import scib_metrics
 from anndata import AnnData
 
 from .utils import compute_knn_graph_connectivities_and_distances
+from nichecompass.tracking import import_mlflow
 
 from .cas import compute_cas
 from .clisis import compute_clisis
@@ -356,6 +356,7 @@ def compute_benchmarking_metrics(
 
     # Track metrics with mlflow
     if mlflow_experiment_id is not None:
+        mlflow = import_mlflow()
         for key, value in benchmarking_dict.items():
             mlflow.log_metric(key, value)
 

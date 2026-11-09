@@ -5,13 +5,12 @@ neural network module that underlies the NicheCompass model.
 
 from typing import List, Literal, Optional, Tuple, Union
 
-import mlflow
 import numpy as np
 import torch
 import torch.nn as nn
-from mlflow.exceptions import MlflowException
 from torch_geometric.data import Data
 
+from nichecompass.tracking import import_mlflow
 from nichecompass.nn import (CosineSimGraphDecoder,
                              Encoder,
                              FCOmicsFeatureDecoder,
@@ -1346,6 +1345,8 @@ class VGPGAE(nn.Module, BaseModuleMixin, VGAEModuleMixin):
             Attributes that are excluded despite being public because of length
             restrictions of mlflow.
         """
+        mlflow = import_mlflow()
+        from mlflow.exceptions import MlflowException
         for attr, attr_value in self._get_public_attributes().items():
             if attr not in excluded_attr:
                 if attr == "cat_covariates_cats_":

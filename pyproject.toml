@@ -27,7 +27,6 @@ classifiers = [
   "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 dependencies = [
-    "mlflow",
     "rdata",
     "scanpy",
     "torch-geometric",
@@ -60,6 +59,10 @@ optional-dependencies.docs = [
 optional-dependencies.docsbuild = [
     "nichecompass[docs,benchmarking,multimodal]"
 ]  # docs build dependencies
+# Only needed for tracking with an mlflow_experiment_id.
+optional-dependencies.tracking = [
+    "mlflow",
+]
 optional-dependencies.tests = [
     "pytest",
     "coverage",
@@ -78,7 +81,7 @@ optional-dependencies.multimodal = [
 optional-dependencies.tutorials = [
     "jupyterlab",
 ]
-optional-dependencies.all = ["nichecompass[dev,docs,tests,benchmarking,multimodal,tutorials]"]
+optional-dependencies.all = ["nichecompass[dev,docs,tests,benchmarking,multimodal,tracking,tutorials]"]
 
 [tool.coverage.run]
 source = ["nichecompass"]

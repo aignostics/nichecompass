@@ -5,7 +5,6 @@ integrated directly into the model API for easy use.
 
 from typing import Literal, List, Optional, Tuple, Union
 
-import mlflow
 import numpy as np
 import pandas as pd
 import scanpy as sc
@@ -18,6 +17,7 @@ from nichecompass.data import (initialize_dataloaders,
                                prepare_data)
 from nichecompass.modules import VGPGAE
 from nichecompass.train import Trainer
+from nichecompass.tracking import import_mlflow
 from .basemodelmixin import BaseModelMixin
 
 
@@ -824,6 +824,7 @@ class NicheCompass(BaseModelMixin):
                     node_batch_size=self.node_batch_size_))
 
         if mlflow_experiment_id is not None:
+            mlflow = import_mlflow()
             mlflow.log_metric("n_active_gps",
                               len(self.adata.uns[self.active_gp_names_key_]))
 
