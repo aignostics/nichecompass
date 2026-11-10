@@ -84,8 +84,9 @@ class SpatialAnnTorchDataset():
             self.edge_label_adj = None
 
         # Validate adjacency matrix symmetry
-        if (self.adj._nnz() != self.adj.t().coalesce()._nnz()):
-            raise ImportError("The input adjacency matrix has to be symmetric.")
+        if not torch.equal(self.adj.indices(),
+                           self.adj.t().coalesce().indices()):
+            raise ValueError("The input adjacency matrix has to be symmetric.")
         
         self.edge_index = self.adj.indices()
 

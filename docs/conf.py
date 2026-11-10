@@ -71,7 +71,6 @@ autodoc_mock_imports = [
     "torchaudio",
     "torch_geometric",
     "torch_scatter",
-    "torch_sparse",
     "torch_cluster",
     "torch_spline_conv",
     "pynvml"
