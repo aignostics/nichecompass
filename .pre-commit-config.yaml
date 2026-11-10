@@ -1,15 +1,15 @@
 repos:
     - repo: https://github.com/psf/black
-      rev: 22.6.0
+      rev: f6c139c5215ce04fd3e73a900f1372942d58eca0  # frozen: 22.6.0
       hooks:
           - id: black
     - repo: https://github.com/PyCQA/flake8
-      rev: 4.0.1
+      rev: 82b698e09996cdde5d473e234681d8380810d7a2  # frozen: 4.0.1
       hooks:
           - id: flake8
     - repo: https://github.com/pycqa/isort
-      rev: 5.10.1
+      rev: c5e8fa75dda5f764d20f66a215d71c21cfa198e1  # frozen: 5.10.1
       hooks:
           - id: isort
             name: isort (python)
-            additional_dependencies: [toml]
+            additional_dependencies: [toml==0.10.2]
