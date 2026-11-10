@@ -165,3 +165,35 @@ skip = [
     "docs/references.md",
     "docs/notebooks/example.ipynb",
 ]
+
+# CI test environment. PyTorch and its extensions are not package dependencies, because users
+# install the build that matches their CUDA version (see docs/installation.md). The PyG wheel index
+# publishes no hashes, so the wheels are direct URLs, which uv hashes in the lock file.
+[dependency-groups]
+ci = [
+    "torch==2.0.0; sys_platform == 'linux' and platform_machine == 'x86_64' and python_version == '3.10'",
+    "torch-scatter==2.1.2; sys_platform == 'linux' and platform_machine == 'x86_64' and python_version == '3.10'",
+    "pyg-lib==0.4.0; sys_platform == 'linux' and platform_machine == 'x86_64' and python_version == '3.10'",
+    # torch 2.0.0 was built against NumPy 1 and cannot convert arrays with NumPy 2.
+    "numpy<2; sys_platform == 'linux' and platform_machine == 'x86_64' and python_version == '3.10'",
+    "scipy",
+]
+# Build backend for "uv build --no-build-isolation" and twine, so that CI builds and checks with locked versions.
+build = [
+    "hatchling",
+    "twine",
+]
+
+[tool.uv]
+# Same 5-day cooldown as Renovate. A new release enters the lock file only after 5 days.
+exclude-newer = "5 days"
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+torch-scatter = { url = "https://data.pyg.org/whl/torch-2.0.0%2Bcpu/torch_scatter-2.1.2%2Bpt20cpu-cp310-cp310-linux_x86_64.whl" }
+pyg-lib = { url = "https://data.pyg.org/whl/torch-2.0.0%2Bcpu/pyg_lib-0.4.0%2Bpt20cpu-cp310-cp310-linux_x86_64.whl" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
