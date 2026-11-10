@@ -34,31 +34,24 @@ jobs:
 
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - name: Set up Python ${{ matrix.python }}
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+      - name: Set up uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
+          # renovate: datasource=github-releases depName=astral-sh/uv
+          version: "0.13.7"
           python-version: ${{ matrix.python }}
-          cache: "pip"
-          cache-dependency-path: "**/pyproject.toml"
-
-      - name: Set up external packages
-        if: steps.changed-files-specific.outputs.only_changed != 'true'
-        uses: ./.github/actions/setup
-      - name: Install test dependencies
-        run: |
-          python -m pip install --upgrade pip wheel
-      - name: Install dependencies
-        run: |
-          pip install ${{ matrix.pip-flags }} ".[dev,tests]"
+          enable-cache: true
+      - name: Install dependencies from the lock file
+        run: uv sync --locked --extra dev --extra tests --group ci
       - name: Test
         env:
           MPLBACKEND: agg
           PLATFORM: ${{ matrix.os }}
           DISPLAY: :42
         run: |
-          coverage run -m pytest -v --color=yes
+          uv run --no-sync coverage run -m pytest -v --color=yes
       - name: Report coverage
         run: |
-          coverage report
+          uv run --no-sync coverage report
       - name: Upload coverage
         uses: codecov/codecov-action@ab904c41d6ece82784817410c45d8b8c02684457 # v3.1.6
