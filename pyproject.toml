@@ -29,7 +29,9 @@ classifiers = [
 dependencies = [
     "rdata",
     "scanpy",
-    "torch-geometric",
+    # InducedNeighborSampler overrides the private NeighborSampler._sample.
+    # Tested with 2.5 to 2.8. Check it again before raising the upper bound.
+    "torch-geometric>=2.5,<2.9",
     "omnipath",
     "decoupler",
     "numpy",

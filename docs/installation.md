@@ -25,7 +25,6 @@ where you want to install the virtual environment.
 To use NicheCompass, you first need to install some external libraries. These
 include:
 - [PyTorch]
-- [PyTorch Scatter]
 - [PyG Lib]
 - [bedtools]
 
@@ -36,15 +35,15 @@ CUDA, this can be done as:
 
 ```
 uv pip install torch==${TORCH}+${CUDA} --extra-index-url https://download.pytorch.org/whl/${CUDA}
-uv pip install pyg_lib torch_scatter -f https://data.pyg.org/whl/torch-${TORCH}+${CUDA}.html
+uv pip install pyg_lib -f https://data.pyg.org/whl/torch-${TORCH}+${CUDA}.html
 ```
 where `${TORCH}` and `${CUDA}` should be replaced by the specific PyTorch and
 CUDA versions, respectively.
 
-For example, for PyTorch 2.6.0 and CUDA 12.4, type:
+For example, for PyTorch 2.13.0 and CUDA 13.0, type:
 ```
-uv pip install torch --index-url https://download.pytorch.org/whl/cu124
-uv pip install pyg_lib torch_scatter -f https://data.pyg.org/whl/torch-2.6.0+cu124.html
+uv pip install torch==2.13.0 --index-url https://download.pytorch.org/whl/cu130
+uv pip install pyg_lib -f https://data.pyg.org/whl/torch-2.13.0+cu130.html
 ```
 
 If you want to install bedtools, we recommend to use conda:
@@ -85,6 +84,5 @@ uv pip install jax[cuda12]
 [uv]: https://docs.astral.sh/uv/getting-started/installation
 [Docker]: https://www.docker.com
 [PyTorch]: http://pytorch.org
-[PyTorch Scatter]: https://github.com/rusty1s/pytorch_scatter
 [PyG Lib]: https://github.com/pyg-team/pyg-lib
 [bedtools]: https://bedtools.readthedocs.io
