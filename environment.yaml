@@ -8,7 +8,8 @@ dependencies:
   - python=3.10
   - pip
   - pytorch=2.0.0
-  - pytorch-scatter=2.1.1
-  - pytorch-sparse=0.6.17
   - pytorch-cuda=11.7
   - bedtools=2.30.0
+  - pip:
+    - --find-links https://data.pyg.org/whl/torch-2.0.0+cu117.html
+    - pyg_lib

@@ -70,7 +70,7 @@ class SpatialAnnTorchDataset():
             else:
                 self.x = torch.cat((self.x, torch.tensor(adata_atac.X)), axis=1)            
 
-        # Store adjacency matrix in torch_sparse SparseTensor format
+        # Store adjacency matrix as a coalesced torch sparse COO tensor
         if sp.issparse(adata.obsp[adj_key]):
             self.adj = sparse_mx_to_sparse_tensor(adata.obsp[adj_key])
         else:
@@ -84,10 +84,11 @@ class SpatialAnnTorchDataset():
             self.edge_label_adj = None
 
         # Validate adjacency matrix symmetry
-        if (self.adj.nnz() != self.adj.t().nnz()):
-            raise ImportError("The input adjacency matrix has to be symmetric.")
+        if not torch.equal(self.adj.indices(),
+                           self.adj.t().coalesce().indices()):
+            raise ValueError("The input adjacency matrix has to be symmetric.")
         
-        self.edge_index = self.adj.to_torch_sparse_coo_tensor()._indices()
+        self.edge_index = self.adj.indices()
 
         if self_loops:
             # Add self loops to account for autocrine communication
