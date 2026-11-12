@@ -43,7 +43,7 @@ jobs:
 
       - name: Set up external packages
         if: steps.changed-files-specific.outputs.only_changed != 'true'
-        uses: ./.github/actions/setup
+        uses: $/.github/actions/setup
       - name: Install test dependencies
         run: |
           python -m pip install --upgrade pip wheel
