@@ -15,6 +15,9 @@ concurrency:
 jobs:
   test:
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      id-token: write # the Codecov upload authenticates with OIDC
     defaults:
       run:
         shell: bash -e {0} # -e to fail on error
@@ -61,4 +64,6 @@ jobs:
         run: |
           coverage report
       - name: Upload coverage
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          use_oidc: true
