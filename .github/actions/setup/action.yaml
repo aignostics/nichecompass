@@ -6,13 +6,10 @@ inputs:
     default: '3.10'
   torch-version:
     required: false
-    default: '2.0.0'
+    default: '2.13.0'
   cuda-version:
     required: false
     default: cpu
-  full_install:
-    required: false
-    default: true
 
 runs:
   using: composite
@@ -35,9 +32,8 @@ runs:
         python -c "import torch; print('CUDA:', torch.version.cuda)"
       shell: bash
 
-    - name: Install extension packages
-      if: ${{ inputs.full_install == 'true' }}
+    # InducedNeighborSampler needs pyg-lib or torch-sparse.
+    - name: Install pyg-lib
       run: |
-        pip install scipy
-        pip install --no-index --upgrade pyg-lib -f https://data.pyg.org/whl/torch-${{ inputs.torch-version }}+${{ inputs.cuda-version }}.html
+        pip install --no-index pyg-lib==0.8.0 -f https://data.pyg.org/whl/torch-${{ inputs.torch-version }}+${{ inputs.cuda-version }}.html
       shell: bash

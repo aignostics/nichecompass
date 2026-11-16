@@ -25,6 +25,7 @@ jobs:
         include:
           - os: ubuntu-latest
             python: "3.10"
+            pins: numpy==1.26.4 scipy==1.10.1
 
     name: ${{ matrix.name }} Python ${{ matrix.python }}
 
@@ -49,7 +50,7 @@ jobs:
           python -m pip install --upgrade pip wheel
       - name: Install dependencies
         run: |
-          pip install ${{ matrix.pip-flags }} ".[dev,tests]"
+          pip install ${{ matrix.pip-flags }} ".[dev,tests]" ${{ matrix.pins }}
       - name: Test
         env:
           MPLBACKEND: agg
