@@ -27,10 +27,11 @@ classifiers = [
   "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 dependencies = [
-    "mlflow",
     "rdata",
     "scanpy",
-    "torch-geometric",
+    # InducedNeighborSampler overrides the private NeighborSampler._sample.
+    # Tested with 2.5 to 2.8. Check it again before raising the upper bound.
+    "torch-geometric>=2.5,<2.9",
     "omnipath",
     "decoupler",
     "numpy",
@@ -60,6 +61,10 @@ optional-dependencies.docs = [
 optional-dependencies.docsbuild = [
     "nichecompass[docs,benchmarking,multimodal]"
 ]  # docs build dependencies
+# Only needed for tracking with an mlflow_experiment_id.
+optional-dependencies.tracking = [
+    "mlflow",
+]
 optional-dependencies.tests = [
     "pytest",
     "coverage",
@@ -78,7 +83,7 @@ optional-dependencies.multimodal = [
 optional-dependencies.tutorials = [
     "jupyterlab",
 ]
-optional-dependencies.all = ["nichecompass[dev,docs,tests,benchmarking,multimodal,tutorials]"]
+optional-dependencies.all = ["nichecompass[dev,docs,tests,benchmarking,multimodal,tracking,tutorials]"]
 
 [tool.coverage.run]
 source = ["nichecompass"]
