@@ -3,15 +3,15 @@
 
     // This repo is public. Mend does not apply the org config (aignostics/renovate-config,
     // org-inherited-config.json) to public repos, so this file holds the parts of it that this repo
-    // needs. Copied from aignostics/renovate-config@74f5148e51fb. Left out:
+    // needs. Copied from aignostics/renovate-config@33fd3bc1888f. Left out:
     //   - onboardingPrTitle: a global option. A repo config cannot set it.
     //   - hostRules: they use {{ secrets.* }} from the Mend org settings. If a secret is not found,
     //     Renovate stops with a config error. This repo uses no private registry.
-    //   - customManagers: no file in this repo has a "# renovate:" or "_renovate" annotation, and
-    //     the repo has no Terraform or Terragrunt files.
-    //   - packageRules for the custom managers, kustomize, registry mirrors, git-tags, npm,
-    //     Terraform, Cloud SQL and registries without release timestamps: this repo has no
-    //     dependency that they match.
+    //   - customManagers, except manager-03-version-string: the workflows annotate the uv version
+    //     with "# renovate:". No file has a container image or "_renovate" annotation, and the
+    //     repo has no Terraform or Terragrunt files.
+    //   - packageRules for the other custom managers, kustomize, registry mirrors, git-tags, npm,
+    //     Terraform and Cloud SQL: this repo has no dependency that they match.
     // The rules of this repo are in the two sections marked "Repo rules". To update the copy, compare
     // everything else with the new org config.
     "extends": ["config:best-practices"],
@@ -38,8 +38,10 @@
     "vulnerabilityAlerts": {
         "addLabels": ["security"],
         "automerge": false,
-        "prHeader": "> [!IMPORTANT]\n> **Security fix, opened without the 5-day wait**\n>\n> Renovate opened this PR because a published advisory affects the current version. It skipped the [**minimum release age** (`minimumReleaseAge`)](https://docs.renovatebot.com/key-concepts/minimum-release-age/) check, so the fixed version might be younger than 5 days. Read the advisory below, check the release age and the upstream release, then merge by hand.\n>\n> This exception is configured in [aignostics/renovate-config](https://github.com/aignostics/renovate-config/blob/main/org-inherited-config.json)."
+        "prHeader": "> [!IMPORTANT]\n> **Security fix, opened without the 5-day wait**\n>\n> Renovate opened this PR because a published advisory affects the current version. It skipped the [**minimum release age** (`minimumReleaseAge`)](https://docs.renovatebot.com/key-concepts/minimum-release-age/) check, so the fixed version might be younger than 5 days. Read the advisory below, check the release age and the upstream release, then merge by hand.\n>\n> uv still applies its own 5-day wait (`exclude-newer` in `pyproject.toml`), and Renovate does not override it. If the fixed version is younger than 5 days, `uv.lock` in this PR is unchanged or the lock update failed. To take the fix early, add the package to `exclude-newer-package` under `[tool.uv]` in `pyproject.toml`, run `uv lock --upgrade-package '<package>==<fixed version>'` and push to this branch. A plain `uv lock` keeps the locked version. Remove the entry when the version is older than 5 days.\n>\n> This exception is configured in [aignostics/renovate-config](https://github.com/aignostics/renovate-config/blob/main/org-inherited-config.json)."
     },
+    // Repo rule: the uv paragraph of prHeader is not in the org config. It is here, not in a "Repo
+    // rules" section, because vulnerabilityAlerts replaces keys and cannot be split.
 
     // Release-age wait. Every update waits minimumReleaseAge (above) before its PR exists, so a
     // compromised release is caught by others first. The three keys below open the PR on the day
@@ -57,7 +59,9 @@
     // https://docs.renovatebot.com/configuration-options/#internalchecksfilter
     "internalChecksFilter": "strict",
 
-    // A release without a registry timestamp counts as too young and gets no PR.
+    // A release without a registry timestamp counts as too young and gets no PR. A package rule
+    // near the end opens these PRs anyway, with the no-release-timestamp label and a note, and
+    // turns automerge off, so a person checks the release by hand.
     // https://docs.renovatebot.com/configuration-options/#minimumreleaseagebehaviour
     "minimumReleaseAgeBehaviour": "timestamp-required",
 
@@ -67,7 +71,8 @@
     // https://docs.renovatebot.com/configuration-options/#addlabels
     "addLabels": ["renovate", "{{{manager}}}"],
 
-    // Enable GitHub native auto-merge on every Renovate PR. GitHub fires the merge automatically
+    // Enable GitHub native auto-merge on every Renovate PR except majors (see the last packageRule).
+    // GitHub fires the merge automatically
     // once all branch-protection requirements are met (checks green + CODEOWNERS approval).
     // Requires "Allow auto-merge" enabled in repo Settings -> General.
     // https://docs.renovatebot.com/configuration-options/#platformautomerge
@@ -89,6 +94,40 @@
         "enabled": true
     },
 
+    // Custom regex "# renovate:" / "// renovate:" managers to track versions Renovate's
+    // built-in managers can't reach on their own -- e.g. a container tag baked into a shell
+    // script variable, or a plain version string in a YAML field with no dedicated manager.
+    // Any file, any language: annotate the line above the value with a "# renovate:" or
+    // "// renovate:" comment naming the datasource (and optionally depName/packageName/etc.),
+    // and Renovate will track and update it like any other dependency.
+    // See README.md in aignostics/renovate-config for the full annotation syntax and examples.
+    // Following: https://docs.renovatebot.com/modules/manager/regex/#required-capture-groups
+    "customManagers": [
+        {
+            "customType": "regex",
+            "description": ["manager-03-version-string: Plain version strings annotated with # renovate: or // renovate:. Handles both assignment (KEY=) and key-value (key:) styles for any datasource."],
+            "managerFilePatterns": ["/./"],
+            "matchStrings": [
+                // Supported fields:
+                //   datasource=<value>              (required)
+                //   depName=<value>                 (required if no packageName)
+                //   packageName=<value>             (required if no depName)
+                //   versioning=<value>              (optional, default: semver-coerced)
+                //   extractVersion=<regex>          (optional)
+                //   registryUrl=<url>               (optional)
+                //
+                // Examples:
+                //   # renovate: datasource=github-releases depName=renovatebot/renovate
+                //   RENOVATE_VERSION="44.251.0"
+                //
+                //   # renovate: datasource=npm depName=renovate versioning=npm
+                //   RENOVATE_NPM_VERSION=44.251.0
+                "(?:#|//) renovate: datasource=(?<datasource>.*?)(?: depName=(?<depName>.+?))?(?: packageName=(?<packageName>.+?))?(?: versioning=(?<versioning>.+?))?(?: extractVersion=(?<extractVersion>.+?))?(?: registryUrl=(?<registryUrl>.+?))?\\n\\s*[^=:\\n]+[=:]\\s*[\"\\']?(?<currentValue>[^\\s@\"\\'#:]+)(?:[\"\\'\\s]|$)"
+            ],
+            "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}semver-coerced{{/if}}"
+        }
+    ],
+
     // ---- Repo rules: they deviate from the org config ----
 
     // This repo is a fork of Lotfollahi-lab/nichecompass. The Mend app skips forks unless the repo config
@@ -104,6 +143,16 @@
     "dependencyDashboard": { "enabled": false },
 
     "packageRules": [
+        {
+            // The container-tag and version-string regex managers have no currentDigest capture
+            // group, so Renovate can't write back a digest for those deps; disable pin/pinDigest
+            // updates for them. The container-digest manager already captures currentDigest and
+            // produces "digest" updates instead, so this rule doesn't affect it.
+            "description": ["Disable digest pinning for regex manager deps without a currentDigest capture group"],
+            "matchManagers": ["custom.regex"],
+            "matchUpdateTypes": ["pin", "pinDigest"],
+            "enabled": false
+        },
         {
             // Ensures inline comments always show the full vX.Y.Z tag (e.g. '# v5.0.0') instead of
             // the shortest matching tag (e.g. '# v5'). extractVersion strips floating tags from the
@@ -121,22 +170,95 @@
             "versioning": "regex:^v?(?<major>\\d+)(\\.(?<minor>\\d+)\\.(?<patch>\\d+))?$"
         },
 
-        // Under timestamp-required, Renovate's branch stage keeps these update types pending forever,
-        // because they carry no release timestamp, so automerge never fires (renovatebot/renovate#45236).
-        // With this rule they count as old enough and automerge, with no label or note.
-        // A pin update fixes a range to the version in use, so a wait protects nothing.
-        // Remove it when renovatebot/renovate#46645 is released.
+        // Workaround: do not let Renovate hold these four update types forever.
+        //
+        // Renovate checks the release date at the lookup, and again on the branch. On the branch it
+        // has no release date for these update types, so under timestamp-required that check never
+        // passes (renovatebot/renovate#45236).
+        // A digest update with a release date still waits minimumReleaseAge at the lookup.
+        //
+        // Remove this rule when renovatebot/renovate#46645 is released.
         {
-            "description": [
-                "Pin, digest, pinDigest and lock file maintenance updates have no release timestamp: do not hold them"
-            ],
-            "matchUpdateTypes": [
-                "pin",
-                "digest",
-                "pinDigest",
-                "lockFileMaintenance"
-            ],
+            "description": ["Workaround: do not let Renovate hold pin, digest, pinDigest and lock file maintenance updates forever"],
+            "matchUpdateTypes": ["pin", "digest", "pinDigest", "lockFileMaintenance"],
             "minimumReleaseAgeBehaviour": "timestamp-optional"
+        },
+
+        // Two rules for an update without a trusted release date.
+        //
+        // An update without a release date cannot wait minimumReleaseAge, so a person looks at it.
+        // The rules test if Renovate has a release date, not which registry the update comes from.
+        // Renovate has a release date for a container image only on Docker Hub, so a list of
+        // registries is never complete.
+        // The mirror rules make Renovate look up a Docker Hub mirror image on Docker Hub, so the
+        // image keeps its release date.
+        // https://docs.renovatebot.com/key-concepts/minimum-release-age/#which-datasources-support-release-timestamps
+
+        // Rule 1: an update without a release date gets a label and a note, and a person merges it.
+        //
+        // The rule reads the release date of the version in use, because Renovate sets
+        // currentVersionTimestamp only when that version has one.
+        // The rule has no update-type list. Every update type can come without a release date.
+        // A digest update gets the release date of its tag, so a tag that is not a version has none.
+        // The note heading names the dependency, so a reader can tell the notes of a group PR apart.
+        // Lock file maintenance has no dependency, so the heading tests the update type for it.
+        // An update with no name at all gets "this update", so the heading is never empty or wrong.
+        //
+        // Example:
+        //   redis:8-alpine@sha256:...            release date of 8-alpine   -> this rule does not apply
+        //   bitnami/postgresql:latest@sha256:... no release date ("latest") -> label, note, a person merges
+        //   ghcr.io/x/y:1.2.3                    no release date (registry) -> label, note, a person merges
+        //   lock file maintenance                no release date            -> label, note, a person merges
+        //
+        // https://docs.renovatebot.com/configuration-options/#packagerulesmatchjsonata
+        {
+            "description": ["No trusted release date: an update without a release date gets a label and a note, and a person merges it"],
+            "matchJsonata": ["$not($exists(currentVersionTimestamp))"],
+            "minimumReleaseAgeBehaviour": "timestamp-optional",
+            "addLabels": ["no-release-timestamp"],
+            "automerge": false,
+            "prBodyNotes": [
+                "> [!WARNING]\n> **No release date for `{{#if (equals updateType 'lockFileMaintenance')}}lock file maintenance{{else if depName}}{{{depName}}}{{else if packageName}}{{{packageName}}}{{else}}this update{{/if}}`**",
+                "Renovate found no release date for the version in use, so it cannot be sure how old this update is.",
+                "Do not rely on the [**minimum release age** (`minimumReleaseAge`)](https://docs.renovatebot.com/key-concepts/minimum-release-age/) here. Check the upstream release, then merge by hand.",
+                "**Renovate issues and discussions about release dates**",
+                "- Any registry: renovatebot/renovate#37196 and renovatebot/renovate#38656",
+                "- ghcr.io: renovatebot/renovate#39064",
+                "- quay.io: renovatebot/renovate#38572",
+                "- mcr.microsoft.com: [discussion #47038](https://github.com/renovatebot/renovate/discussions/47038)",
+                "- Amazon ECR: [discussion #44179](https://github.com/renovatebot/renovate/discussions/44179) and [discussion #39344](https://github.com/renovatebot/renovate/discussions/39344)",
+                "This rule is configured in [aignostics/renovate-config](https://github.com/aignostics/renovate-config/blob/main/org-inherited-config.json)."
+            ]
+        },
+
+        // Rule 2: a digest update automerges only for a Docker image. A person merges every other one.
+        //
+        // The rule turns off automerge only. It does not change when the pull request opens.
+        // Renovate has a release date that it can trust for a digest only on Docker Hub. There the
+        // date moves when the tag is pushed again. For a git source, the date is the date of the
+        // commit, not the day the tag or branch moved to that commit. A tag such as v4 can move to an
+        // old commit, so the wait proves nothing.
+        // The rule names the one trusted source, so a new kind of digest update is covered too.
+        //
+        // Example:
+        //   redis:8-alpine@sha256:...        Docker image      -> this rule does not apply
+        //   actions/checkout@<sha> # v4      digest update     -> label, note, a person merges
+        //   golang.org/x/exp v0.0.0-...      digest update     -> label, note, a person merges
+        //   actions/checkout@<sha> # v4.1.2  version update    -> this rule does not apply
+        //
+        // https://docs.renovatebot.com/key-concepts/minimum-release-age/#digest-updates
+        {
+            "description": ["No trusted release date: a digest update automerges only for a Docker image, a person merges every other one"],
+            "matchUpdateTypes": ["digest"],
+            "matchJsonata": ["datasource != 'docker'"],
+            "addLabels": ["untrusted-release-timestamp"],
+            "automerge": false,
+            "prBodyNotes": [
+                "> [!WARNING]\n> **The release date of the `{{#if depName}}{{{depName}}}{{else if packageName}}{{{packageName}}}{{else}}this update{{/if}}` digest cannot be trusted**",
+                "Renovate can trust the release date of a digest only for a Docker image. For a git source, the date is the date of the commit, not the day the tag or branch started to point at it.",
+                "A tag such as `v4` can move to an old commit, so the [**minimum release age** (`minimumReleaseAge`)](https://docs.renovatebot.com/key-concepts/minimum-release-age/#digest-updates) proves nothing here. Read the upstream commit, then merge by hand.",
+                "This rule is configured in [aignostics/renovate-config](https://github.com/aignostics/renovate-config/blob/main/org-inherited-config.json)."
+            ]
         },
 
         // ---- Repo rules: they deviate from the org config ----
@@ -149,6 +271,17 @@
             "groupName": "pre-commit hooks",
             "matchManagers": ["pre-commit"],
             "separateMajorMinor": false
+        },
+
+        // ---- Org config again: its last rule, which has to stay last ----
+
+        // A major update can break the API, so a person merges it. A group PR with one major
+        // update in it does not automerge either. Keep this rule last, so no rule above turns
+        // automerge on again for a major update.
+        {
+            "description": ["Major updates: no automerge"],
+            "matchUpdateTypes": ["major"],
+            "automerge": false
         }
     ]
 }
