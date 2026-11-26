@@ -24,9 +24,14 @@
     "semanticCommits": "enabled",
 
     // Query osv.dev for CVEs in all tracked dependencies and raise immediate fix PRs when a
-    // vulnerability is found.
+    // vulnerability is found. The Dependency Dashboard shows all known CVEs, including ones that
+    // already have an open Renovate PR. The dashboard is an issue, so issues must stay on in the
+    // repo settings.
     // https://docs.renovatebot.com/configuration-options/#osvvulnerabilityalerts
     "osvVulnerabilityAlerts": true,
+    // Renovate 44.232.0 moved the flat dependencyDashboard* options into this object.
+    // https://docs.renovatebot.com/configuration-options/#dependencydashboard
+    "dependencyDashboard": { "osvVulnerabilitySummary": "all" },
 
     // A vulnerability fix PR skips the 5-day wait by design, so the fixed version can be hours old.
     // Label it, say so in the body, and keep automerge off, so a person checks the fix before the merge.
@@ -134,13 +139,6 @@
     // turns them on.
     // https://docs.renovatebot.com/configuration-options/#forkprocessing
     "forkProcessing": "enabled",
-
-    // Issues are off in this repo, so Renovate has no place for the Dependency Dashboard that
-    // config:best-practices turns on. The org config also sets osvVulnerabilitySummary in this
-    // object. It is left out, because the summary is part of the dashboard.
-    // Renovate 44.232.0 moved the flat dependencyDashboard* options into this object.
-    // https://docs.renovatebot.com/configuration-options/#dependencydashboard
-    "dependencyDashboard": { "enabled": false },
 
     "packageRules": [
         {
