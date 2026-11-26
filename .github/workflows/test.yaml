@@ -39,6 +39,7 @@ jobs:
         with:
           # renovate: datasource=github-releases depName=astral-sh/uv
           version: "0.13.7"
+          checksum: "c5221ff41b7892bfc223543883600125f6a47fe845093e0f5bdff4f359196d83"
           python-version: ${{ matrix.python }}
           enable-cache: true
       - name: Install dependencies from the lock file
