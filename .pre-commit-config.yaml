@@ -12,4 +12,3 @@ repos:
       hooks:
           - id: isort
             name: isort (python)
-            additional_dependencies: [toml==0.10.2]
