@@ -51,12 +51,6 @@ If you want to install bedtools, we recommend to use conda:
 conda install bedtools=2.30.0 -c bioconda
 ```
 
-Alternatively, we have provided a conda environment file with all required
-external libraries for PyTorch 2.0.0 and CUDA 11.7, which you can use as:
-```
-conda env create -f environment.yaml
-```
-
 ## Installation via PyPi
 
 Subsequently, install NicheCompass via pip:
