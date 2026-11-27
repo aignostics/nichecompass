@@ -27,10 +27,11 @@ classifiers = [
   "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 dependencies = [
-    "mlflow",
     "rdata",
     "scanpy",
-    "torch-geometric",
+    # InducedNeighborSampler overrides the private NeighborSampler._sample.
+    # Tested with 2.5 to 2.8. Check it again before raising the upper bound.
+    "torch-geometric>=2.5,<2.9",
     "omnipath",
     "decoupler",
     "numpy",
@@ -60,6 +61,10 @@ optional-dependencies.docs = [
 optional-dependencies.docsbuild = [
     "nichecompass[docs,benchmarking,multimodal]"
 ]  # docs build dependencies
+# Only needed for tracking with an mlflow_experiment_id.
+optional-dependencies.tracking = [
+    "mlflow",
+]
 optional-dependencies.tests = [
     "pytest",
     "coverage",
@@ -78,7 +83,7 @@ optional-dependencies.multimodal = [
 optional-dependencies.tutorials = [
     "jupyterlab",
 ]
-optional-dependencies.all = ["nichecompass[dev,docs,tests,benchmarking,multimodal,tutorials]"]
+optional-dependencies.all = ["nichecompass[dev,docs,tests,benchmarking,multimodal,tracking,tutorials]"]
 
 [tool.coverage.run]
 source = ["nichecompass"]
@@ -162,3 +167,38 @@ skip = [
     "docs/references.md",
     "docs/notebooks/example.ipynb",
 ]
+
+# CI test environment. PyTorch and pyg-lib are not package dependencies, because users install the
+# build that matches their CUDA version (see docs/installation.md). The PyG wheel index publishes
+# no hashes, so the pyg-lib wheel is a direct URL, which uv hashes in the lock file.
+[dependency-groups]
+ci = [
+    "torch==2.13.0; sys_platform == 'linux' and platform_machine == 'x86_64' and python_version == '3.10'",
+    # InducedNeighborSampler needs pyg-lib or torch-sparse.
+    "pyg-lib==0.8.0; sys_platform == 'linux' and platform_machine == 'x86_64' and python_version == '3.10'",
+    "numpy==1.26.4; sys_platform == 'linux' and platform_machine == 'x86_64' and python_version == '3.10'",
+    "scipy==1.10.1; sys_platform == 'linux' and platform_machine == 'x86_64' and python_version == '3.10'",
+]
+# Build backend for "uv build --no-build-isolation" and twine, so that CI builds and checks with locked versions.
+build = [
+    "hatchling",
+    "twine",
+]
+
+[tool.uv]
+# Wait 5 days before taking a new release, same as the Renovate cooldown
+exclude-newer = "5 days"
+# A Renovate security fix PR skips the Renovate cooldown, but not this one. To take a fix that
+# is younger than 5 days, list the package here and run
+# uv lock --upgrade-package '<package>==<fixed version>'. A plain uv lock keeps the locked
+# version. Remove the entry when the version is older than 5 days.
+# Example: exclude-newer-package = { idna = false }
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+pyg-lib = { url = "https://data.pyg.org/whl/torch-2.13.0%2Bcpu/pyg_lib-0.8.0%2Bpt213cpu-cp310-abi3-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true

@@ -7,11 +7,92 @@ from typing import Literal
 import torch
 import torch.nn as nn
 from torch_geometric.nn.conv import MessagePassing
-from torch_geometric.nn.conv.gcn_conv import gcn_norm
 from torch_geometric.nn.dense.linear import Linear
 from torch_geometric.nn.inits import glorot
 from torch_geometric.utils import softmax
-from torch_sparse import SparseTensor
+
+
+def get_gcn_normalized_edges(
+        edge_index: torch.Tensor,
+        num_nodes: int,
+        dtype: torch.dtype) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """
+    Get the edges and weights of the symmetrically normalized adjacency matrix
+    with self loops, as `gcn_norm` computes them for a torch_sparse
+    SparseTensor: existing self loops are replaced by one self loop of weight 1
+    per node, and the entry (i, j) is scaled by deg(i)^-1/2 * deg(j)^-1/2,
+    where deg is the row sum.
+
+    Parameters
+    ----------
+    edge_index:
+        Tensor containing the node indices of edges.
+        (Size: 2 x n_edges)
+    num_nodes:
+        Number of nodes.
+    dtype:
+        Data type of the edge weights.
+
+    Returns
+    ----------
+    row:
+        Row index of each edge, the edges without self loops in input order
+        followed by one self loop per node.
+    col:
+        Column index of each edge.
+    value:
+        Normalized weight of each edge.
+    """
+    row, col = edge_index
+    not_self_loop = row != col
+    nodes = torch.arange(num_nodes, device=edge_index.device)
+    row = torch.cat([row[not_self_loop], nodes])
+    col = torch.cat([col[not_self_loop], nodes])
+    deg = torch.bincount(row, minlength=num_nodes).to(dtype)
+    deg_inv_sqrt = deg.pow(-0.5)
+    deg_inv_sqrt.masked_fill_(torch.isinf(deg_inv_sqrt), 0.)
+    value = deg_inv_sqrt[row] * deg_inv_sqrt[col]
+    return row, col, value
+
+
+def aggregate_to_columns(row: torch.Tensor,
+                         col: torch.Tensor,
+                         value: torch.Tensor,
+                         x: torch.Tensor) -> torch.Tensor:
+    """
+    Multiply the transposed sparse adjacency matrix with `x`, that is sum
+    value * x[row] into position col, as `adj.t().matmul(x)` does for a
+    torch_sparse SparseTensor. The transposed matrix is built in CSR format
+    with sorted indices, which avoids sorting the edges again inside the
+    sparse matrix product.
+
+    Parameters
+    ----------
+    row:
+        Row index of each edge.
+    col:
+        Column index of each edge.
+    value:
+        Weight of each edge.
+    x:
+        Tensor containing the node features.
+        (Size: n_nodes x n_node_features)
+
+    Returns
+    ----------
+    x_aggregated:
+        Tensor containing the aggregated node features.
+        (Size: n_nodes x n_node_features)
+    """
+    num_nodes = x.shape[0]
+    order = torch.argsort(col * num_nodes + row)
+    crow_indices = torch.zeros(num_nodes + 1, dtype=torch.long, device=x.device)
+    crow_indices[1:] = torch.cumsum(torch.bincount(col, minlength=num_nodes), 0)
+    adj_t = torch.sparse_csr_tensor(crow_indices,
+                                    row[order],
+                                    value[order].to(x.dtype),
+                                    (num_nodes, num_nodes))
+    return adj_t @ x
 
 
 class OneHopAttentionNodeLabelAggregator(MessagePassing):
@@ -202,13 +283,14 @@ class OneHopGCNNormNodeLabelAggregator(nn.Module):
         alpha:
             Neighbor aggregation weights.
         """
-        adj = SparseTensor.from_edge_index(edge_index,
-                                           sparse_sizes=(x.shape[0],
-                                                         x.shape[0]))
-        adj_norm = gcn_norm(adj)
-        x_neighbors = adj_norm.t().matmul(x)
+        row, col, value = get_gcn_normalized_edges(edge_index,
+                                                   num_nodes=x.shape[0],
+                                                   dtype=x.dtype)
+        x_neighbors = aggregate_to_columns(row, col, value, x)
         if return_agg_weights:
-            alpha = adj_norm.coo()[2]
+            # Return the weights in row-major order, as SparseTensor stores them
+            order = torch.argsort(row * x.shape[0] + col, stable=True)
+            alpha = value[order]
             return x_neighbors, alpha
         return x_neighbors, None
 
@@ -257,9 +339,8 @@ class OneHopSumNodeLabelAggregator(nn.Module):
             omics reconstruction task.
             (Size: n_nodes_batch x (2 x n_node_features))
         """
-        adj = SparseTensor.from_edge_index(edge_index,
-                                           sparse_sizes=(x.shape[0],
-                                                         x.shape[0]))
-        x_neighbors = adj.t().matmul(x)
+        row, col = edge_index
+        value = torch.ones(row.numel(), dtype=x.dtype, device=x.device)
+        x_neighbors = aggregate_to_columns(row, col, value, x)
         return x_neighbors, None
     

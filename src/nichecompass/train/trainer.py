@@ -10,13 +10,13 @@ import warnings
 from collections import defaultdict
 from typing import List, Optional
 
-import mlflow
 import numpy as np
 import torch
 import torch.nn as nn
 from anndata import AnnData
 
 from nichecompass.data import initialize_dataloaders, prepare_data
+from nichecompass.tracking import import_mlflow
 from .basetrainermixin import BaseTrainerMixin
 from .metrics import eval_metrics, plot_eval_metrics
 from .utils import (_cycle_iterable,
@@ -329,6 +329,7 @@ class Trainer(BaseTrainerMixin):
         
         # Log hyperparameters
         if self.mlflow_experiment_id is not None:
+            mlflow = import_mlflow()
             for attr, attr_value in self._get_public_attributes().items():
                 mlflow.log_param(attr, attr_value)
             self.model.log_module_hyperparams_to_mlflow()
@@ -479,10 +480,10 @@ class Trainer(BaseTrainerMixin):
 
         fig = plot_loss_curves(losses)
         if self.mlflow_experiment_id is not None:
-            mlflow.log_figure(fig, "loss_curves.png")
+            import_mlflow().log_figure(fig, "loss_curves.png")
         fig = plot_eval_metrics(val_eval_metrics_over_epochs) 
         if self.mlflow_experiment_id is not None:
-            mlflow.log_figure(fig, "val_eval_metrics.png")
+            import_mlflow().log_figure(fig, "val_eval_metrics.png")
         """
 
         # Calculate after training validation metrics
@@ -679,6 +680,7 @@ class Trainer(BaseTrainerMixin):
             
         # Log evaluation metrics
         if self.mlflow_experiment_id is not None:
+            mlflow = import_mlflow()
             for key, value in val_eval_dict.items():
                 mlflow.log_metric(f"val_{key}", value)
 
